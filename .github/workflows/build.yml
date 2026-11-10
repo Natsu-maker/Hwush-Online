@@ -2,7 +2,8 @@ name: Build Hwush APK
 
 on:
   push:
-    branches: [ main, master ]
+    branches: [ main ]
+    tags: [ 'v*' ]
   workflow_dispatch:
 
 permissions:
@@ -16,6 +17,16 @@ jobs:
 
       - name: Unpack project
         run: unzip -q hwush.zip -d project
+
+      # Discord's SDK is too big for the web uploader, so it lives in a release tagged "sdk".
+      # If that release is missing, the build still works, just without Discord.
+      - name: Fetch Discord SDK
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p project/app/libs
+          gh release download sdk -p discord_partner_sdk.aar -D project/app/libs --repo "$GITHUB_REPOSITORY" || echo "No Discord SDK release found, building without it"
+          ls -la project/app/libs
 
       - uses: actions/setup-java@v4
         with:
@@ -35,16 +46,15 @@ jobs:
         working-directory: project
         run: gradle :app:assembleRelease --no-daemon --stacktrace
 
-      - name: Keep APK as a download
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: Hwush-APK
           path: project/app/build/outputs/apk/release/*.apk
 
-      - name: Publish APK on the Releases page
+      - name: Publish release
+        if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: build-${{ github.run_number }}
-          name: Hwush build ${{ github.run_number }}
           files: project/app/build/outputs/apk/release/*.apk
           
