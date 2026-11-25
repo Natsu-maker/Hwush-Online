@@ -52,8 +52,12 @@ jobs:
           name: Hwush-APK
           path: project/app/build/outputs/apk/release/*.apk
 
+      # Every build now lands on the Releases page. A pushed v* tag keeps its own name;
+      # any other build is published as "build-<number>".
       - name: Publish release
-        if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || format('build-{0}', github.run_number) }}
+          name: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || format('Hwush build {0}', github.run_number) }}
           files: project/app/build/outputs/apk/release/*.apk
+          make_latest: true
